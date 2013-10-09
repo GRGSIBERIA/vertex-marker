@@ -23,6 +23,7 @@ public class VertexMarker
 			transform.localPosition = root_mesh.vertices[i];
 			transform.localScale = marker_size;
 			obj.AddComponent<MeshFilter>().sharedMesh = primitive_mesh;
+			obj.AddComponent<MeshRenderer>().material = new Material("Unlit/Masked Colored");
 		}
 	}
 
