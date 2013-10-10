@@ -22,7 +22,7 @@ public class VertexMarker : MonoBehaviour
 		var target = gameObject;
 
 		target_mesh = target.GetComponent<SkinnedMeshRenderer>().sharedMesh;
-		marker_mesh = CopyMesh(target);
+		marker_mesh = CopyMesh();
 		non_select_color = marker.renderer.material;
 
 		AssignMarker(target, marker_size);
@@ -46,7 +46,7 @@ public class VertexMarker : MonoBehaviour
 			marker_mesh.vertices[i] = original_vertices[i] * marker_size;
 	}
 
-	Mesh CopyMesh(GameObject marker)
+	Mesh CopyMesh()
 	{
 		var mesh = marker.GetComponent<MeshFilter>().sharedMesh;
 		var new_mesh = new Mesh();
@@ -86,7 +86,10 @@ public class VertexMarker : MonoBehaviour
 		transform.parent = branch;
 		transform.localPosition = mesh_vtx;
 		obj.AddComponent<MeshFilter>().sharedMesh = marker_mesh;
-		obj.AddComponent<MeshRenderer>().material = non_select_color;
+		var renderer = obj.AddComponent<MeshRenderer>();
+		renderer.materials[0] = non_select_color;
+		renderer.castShadows = false;
+		renderer.receiveShadows = false;
 	}
 
 	void StructureVertexMarkers(Transform marker_branch_transform, float marker_size)
