@@ -2,64 +2,70 @@
 using System.Collections;
 using System;
 
-/// <summary>
-/// 頂点を表示したいGameObjectにアサインする
-/// ただし，対象のGameObjectにはSkinnedMeshRendererがあること
-/// </summary>
 public class VertexMarker : MonoBehaviour
 {
-	public GameObject marker;
-	public Color marker_color;
-	public float marker_size = 0.01f;
+	public float size = 0.005f;
+	public Color markerColor = Color.magenta;
+	public GameObject targetObject;
 
-	float prev_marker_size;
-	Mesh target_mesh;
+	Mesh mesh;
+	Material mat;
+	Vector3[] vertices;
+	Vector3[] normals;
+	MayaCamera mayaCamera;
 
-	void Start()
+	void InitializeMembers()
 	{
-		var target = gameObject;
-		target_mesh = target.GetComponent<SkinnedMeshRenderer>().sharedMesh;
-		AssignMarker(target, marker_size);
-		prev_marker_size = marker_size;
+		mesh = targetObject.GetComponent<SkinnedMeshRenderer>().sharedMesh;
+		mat = new Material(Shader.Find("Diffuse"));
+		vertices = mesh.vertices;
+		normals = mesh.normals;
+		mayaCamera = GetComponent<MayaCamera>();
 	}
 
-	void Update()
+	void Awake()
 	{
-		if (marker_size != prev_marker_size)
+		InitializeMembers();
+	}
+
+	void RenderTriangles()
+	{
+		var vtx_size = (size * 0.5f) * (mayaCamera.Log10LookAtLength);
+		var up = Camera.main.transform.up * vtx_size;
+		var right = Camera.main.transform.right * vtx_size;
+		var ray = Camera.main.transform.forward;
+
+		var neg = up - right;
+		var pos = up + right;
+
+		/*
+		 * Vector3の足し算 = 20cycle
+		 * GL.Vertex呼び出しx4回 = 80cycle
+		 * 80cycle * 30k頂点 = 2.4Mサイクル
+		 * Dot(ray, normal)で1.2Mサイクルに削減
+		 */
+		for (int i = 0; i < vertices.Length; i++)
 		{
-
-		}
-		prev_marker_size = marker_size;
-	}
-
-	void AssignMarker(GameObject root, float marker_size)
-	{
-		var marker_branch = CreateBranchedMarkerObject(root);
-		StructureVertexMarkers(marker_branch.transform, marker_size);
-	}
-
-	public void InstantiateMarker(int number, GameObject marker, Transform branch, Vector3 mesh_vtx, float size)
-	{
-		var obj = GameObject.Instantiate(marker) as GameObject;
-		var transform = obj.transform;
-		obj.name = number.ToString();
-		transform.parent = branch;
-		transform.localPosition = mesh_vtx;
-		transform.localScale = Vector3.one * size;
-	}
-
-	void StructureVertexMarkers(Transform marker_branch_transform, float marker_size)
-	{
-		for (int i = 0; i < target_mesh.vertices.Length; i++)
-		{
-			InstantiateMarker(i, marker, marker_branch_transform, target_mesh.vertices[i], marker_size);
+			if (Vector3.Dot(ray, normals[i]) < 0f)
+			{
+				GL.Vertex(vertices[i] + neg);
+				GL.Vertex(vertices[i] + pos);
+				GL.Vertex(vertices[i] - neg);
+				var last = vertices[i] - pos;
+				GL.Vertex(last);
+			}
 		}
 	}
 
-	GameObject CreateBranchedMarkerObject(GameObject root)
+	void OnPostRender()
 	{
-		var marker_branch = new GameObject("markers");
-		marker_branch.transform.parent = root.transform;
-		return marker_branch;
+		GL.PushMatrix();
+		mat.SetPass(0);
+		GL.Begin(GL.QUADS);
+		GL.Color(markerColor);
+		GL.Clear(true, false, Camera.main.backgroundColor);
+		RenderTriangles();
+		GL.End();
+		GL.PopMatrix();
 	}
 }
